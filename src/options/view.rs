@@ -1,10 +1,13 @@
+use std::ffi::OsString;
+
 use crate::fs::feature::xattr;
 use crate::options::parser::MatchedFlags;
-use crate::options::{flags, NumberSource, OptionsError, Vars};
+use crate::options::{flags, vars, NumberSource, OptionsError, Vars};
+use crate::output::color_scale::{ColorScaleMode, ColorScaleOptions};
 use crate::output::file_name::Options as FileStyle;
 use crate::output::grid_details::{self, RowThreshold};
 use crate::output::table::{
-    Columns, GroupFormat, Options as TableOptions, SizeFormat, TimeTypes, UserFormat,
+    Columns, FlagsFormat, GroupFormat, Options as TableOptions, SizeFormat, TimeTypes, UserFormat,
 };
 use crate::output::time::TimeFormat;
 use crate::output::{details, grid, Mode, TerminalWidth, View};
@@ -79,7 +82,7 @@ impl Mode {
 
         if flag.matches(&flags::TREE) {
             let _ = matches.has(&flags::TREE)?;
-            let details = details::Options::deduce_tree(matches)?;
+            let details = details::Options::deduce_tree(matches, vars)?;
             return Ok(Self::Details(details));
         }
 
@@ -142,13 +145,14 @@ impl grid::Options {
 }
 
 impl details::Options {
-    fn deduce_tree(matches: &MatchedFlags<'_>) -> Result<Self, OptionsError> {
+    fn deduce_tree<V: Vars>(matches: &MatchedFlags<'_>, vars: &V) -> Result<Self, OptionsError> {
         let details = details::Options {
             table: None,
             header: false,
             xattr: xattr::ENABLED && matches.has(&flags::EXTENDED)?,
             secattr: xattr::ENABLED && matches.has(&flags::SECURITY_CONTEXT)?,
             mounts: matches.has(&flags::MOUNTS)?,
+            color_scale: ColorScaleOptions::deduce(matches, vars)?,
         };
 
         Ok(details)
@@ -169,14 +173,13 @@ impl details::Options {
             xattr: xattr::ENABLED && matches.has(&flags::EXTENDED)?,
             secattr: xattr::ENABLED && matches.has(&flags::SECURITY_CONTEXT)?,
             mounts: matches.has(&flags::MOUNTS)?,
+            color_scale: ColorScaleOptions::deduce(matches, vars)?,
         })
     }
 }
 
 impl TerminalWidth {
     fn deduce<V: Vars>(matches: &MatchedFlags<'_>, vars: &V) -> Result<Self, OptionsError> {
-        use crate::options::vars;
-
         if let Some(width) = matches.get(&flags::WIDTH)? {
             let arg_str = width.to_string_lossy();
             match arg_str.parse() {
@@ -208,8 +211,6 @@ impl TerminalWidth {
 
 impl RowThreshold {
     fn deduce<V: Vars>(vars: &V) -> Result<Self, OptionsError> {
-        use crate::options::vars;
-
         if let Some(columns) = vars
             .get_with_fallback(vars::EZA_GRID_ROWS, vars::EXA_GRID_ROWS)
             .and_then(|s| s.into_string().ok())
@@ -236,12 +237,14 @@ impl TableOptions {
         let size_format = SizeFormat::deduce(matches)?;
         let user_format = UserFormat::deduce(matches)?;
         let group_format = GroupFormat::deduce(matches)?;
+        let flags_format = FlagsFormat::deduce(vars);
         let columns = Columns::deduce(matches, vars)?;
         Ok(Self {
             size_format,
             time_format,
             user_format,
             group_format,
+            flags_format,
             columns,
         })
     }
@@ -249,7 +252,6 @@ impl TableOptions {
 
 impl Columns {
     fn deduce<V: Vars>(matches: &MatchedFlags<'_>, vars: &V) -> Result<Self, OptionsError> {
-        use crate::options::vars;
         let time_types = TimeTypes::deduce(matches)?;
 
         let no_git_env = vars
@@ -270,6 +272,7 @@ impl Columns {
         let links = matches.has(&flags::LINKS)?;
         let octal = matches.has(&flags::OCTAL)?;
         let security_context = xattr::ENABLED && matches.has(&flags::SECURITY_CONTEXT)?;
+        let file_flags = matches.has(&flags::FILE_FLAGS)?;
 
         let permissions = !matches.has(&flags::NO_PERMISSIONS)?;
         let filesize = !matches.has(&flags::NO_FILESIZE)?;
@@ -286,6 +289,7 @@ impl Columns {
             subdir_git_repos_no_stat,
             octal,
             security_context,
+            file_flags,
             permissions,
             filesize,
             user,
@@ -319,7 +323,6 @@ impl TimeFormat {
         let word = if let Some(w) = matches.get(&flags::TIME_STYLE)? {
             w.to_os_string()
         } else {
-            use crate::options::vars;
             match vars.get(vars::TIME_STYLE) {
                 Some(ref t) if !t.is_empty() => t.clone(),
                 _ => return Ok(Self::DefaultFormat),
@@ -332,9 +335,39 @@ impl TimeFormat {
             "iso" => Ok(Self::ISOFormat),
             "long-iso" => Ok(Self::LongISO),
             "full-iso" => Ok(Self::FullISO),
-            fmt if fmt.starts_with('+') => Ok(Self::Custom {
-                fmt: fmt[1..].to_owned(),
-            }),
+            fmt if fmt.starts_with('+') => {
+                let mut lines = fmt[1..].lines();
+
+                // line 1 will be None when:
+                //   - there is nothing after `+`
+                // line 1 will be empty when:
+                //   - `+` is followed immediately by `\n`
+                let empty_non_recent_format_msg = "Custom timestamp format is empty, \
+                    please supply a chrono format string after the plus sign.";
+                let non_recent = lines.next().expect(empty_non_recent_format_msg);
+                let non_recent = if non_recent.is_empty() {
+                    panic!("{}", empty_non_recent_format_msg)
+                } else {
+                    non_recent.to_owned()
+                };
+
+                // line 2 will be None when:
+                //   - there is not a single `\n`
+                //   - there is nothing after the first `\n`
+                // line 2 will be empty when:
+                //   - there exist at least 2 `\n`, and no content between the 1st and 2nd `\n`
+                let empty_recent_format_msg = "Custom timestamp format for recent files is empty, \
+                    please supply a chrono format string at the second line.";
+                let recent = lines.next().map(|rec| {
+                    if rec.is_empty() {
+                        panic!("{}", empty_recent_format_msg)
+                    } else {
+                        rec.to_owned()
+                    }
+                });
+
+                Ok(Self::Custom { non_recent, recent })
+            }
             _ => Err(OptionsError::BadArgument(&flags::TIME_STYLE, word)),
         }
     }
@@ -414,6 +447,68 @@ impl TimeTypes {
         };
 
         Ok(time_types)
+    }
+}
+
+impl ColorScaleOptions {
+    pub fn deduce<V: Vars>(matches: &MatchedFlags<'_>, vars: &V) -> Result<Self, OptionsError> {
+        let min_luminance =
+            match vars.get_with_fallback(vars::EZA_MIN_LUMINANCE, vars::EXA_MIN_LUMINANCE) {
+                Some(var) => match var.to_string_lossy().parse() {
+                    Ok(luminance) if (-100..=100).contains(&luminance) => luminance,
+                    _ => 40,
+                },
+                None => 40,
+            };
+
+        let mode = if let Some(w) = matches
+            .get(&flags::COLOR_SCALE_MODE)?
+            .or(matches.get(&flags::COLOUR_SCALE_MODE)?)
+        {
+            match w.to_str() {
+                Some("fixed") => ColorScaleMode::Fixed,
+                Some("gradient") => ColorScaleMode::Gradient,
+                _ => Err(OptionsError::BadArgument(
+                    &flags::COLOR_SCALE_MODE,
+                    w.to_os_string(),
+                ))?,
+            }
+        } else {
+            ColorScaleMode::Gradient
+        };
+
+        let mut options = ColorScaleOptions {
+            mode,
+            min_luminance,
+            size: false,
+            age: false,
+        };
+
+        let words = if let Some(w) = matches
+            .get(&flags::COLOR_SCALE)?
+            .or(matches.get(&flags::COLOUR_SCALE)?)
+        {
+            w.to_os_string()
+        } else {
+            return Ok(options);
+        };
+
+        for word in words.to_string_lossy().split(',') {
+            match word {
+                "all" => {
+                    options.size = true;
+                    options.age = true;
+                }
+                "age" => options.age = true,
+                "size" => options.size = true,
+                _ => Err(OptionsError::BadArgument(
+                    &flags::COLOR_SCALE,
+                    OsString::from(word),
+                ))?,
+            };
+        }
+
+        Ok(options)
     }
 }
 
@@ -557,13 +652,14 @@ mod test {
         test!(empty:     TimeFormat <- [], None;                            Both => like Ok(TimeFormat::DefaultFormat));
 
         // Individual settings
-        test!(default:          TimeFormat <- ["--time-style=default"], None;      Both => like Ok(TimeFormat::DefaultFormat));
-        test!(iso:              TimeFormat <- ["--time-style", "iso"], None;       Both => like Ok(TimeFormat::ISOFormat));
-        test!(relative:         TimeFormat <- ["--time-style", "relative"], None;  Both => like Ok(TimeFormat::Relative));
-        test!(long_iso:         TimeFormat <- ["--time-style=long-iso"], None;     Both => like Ok(TimeFormat::LongISO));
-        test!(full_iso:         TimeFormat <- ["--time-style", "full-iso"], None;  Both => like Ok(TimeFormat::FullISO));
-        test!(custom_style:     TimeFormat <- ["--time-style", "+%Y/%m/%d"], None; Both => like Ok(TimeFormat::Custom { .. }));
-        test!(bad_custom_style: TimeFormat <- ["--time-style", "%Y/%m/%d"], None;  Both => err OptionsError::BadArgument(&flags::TIME_STYLE, OsString::from("%Y/%m/%d")));
+        test!(default:                TimeFormat <- ["--time-style=default"], None;               Both => like Ok(TimeFormat::DefaultFormat));
+        test!(iso:                    TimeFormat <- ["--time-style", "iso"], None;                Both => like Ok(TimeFormat::ISOFormat));
+        test!(relative:               TimeFormat <- ["--time-style", "relative"], None;           Both => like Ok(TimeFormat::Relative));
+        test!(long_iso:               TimeFormat <- ["--time-style=long-iso"], None;              Both => like Ok(TimeFormat::LongISO));
+        test!(full_iso:               TimeFormat <- ["--time-style", "full-iso"], None;           Both => like Ok(TimeFormat::FullISO));
+        test!(custom_style:           TimeFormat <- ["--time-style", "+%Y/%m/%d"], None;          Both => like Ok(TimeFormat::Custom { recent: None, .. }));
+        test!(custom_style_multiline: TimeFormat <- ["--time-style", "+%Y/%m/%d\n--%m-%d"], None; Both => like Ok(TimeFormat::Custom { recent: Some(_), .. }));
+        test!(bad_custom_style:       TimeFormat <- ["--time-style", "%Y/%m/%d"], None;           Both => err OptionsError::BadArgument(&flags::TIME_STYLE, OsString::from("%Y/%m/%d")));
 
         // Overriding
         test!(actually:  TimeFormat <- ["--time-style=default", "--time-style", "iso"], None;  Last => like Ok(TimeFormat::ISOFormat));

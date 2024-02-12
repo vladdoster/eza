@@ -88,9 +88,10 @@ eza’s options are almost, but not quite, entirely unlike `ls`’s.
 - **-R**, **--recurse**: recurse into directories
 - **-T**, **--tree**: recurse into directories as a tree
 - **-x**, **--across**: sort the grid across, rather than downwards
-- **-F**, **--classify**: display type indicator by file names
+- **-F**, **--classify=(when)**: display type indicator by file names (always, auto, never)
 - **--colo[u]r=(when)**: when to use terminal colours (always, auto, never)
-- **--colo[u]r-scale**: highlight levels of file sizes distinctly
+- **--colo[u]r-scale=(field)**: highlight levels of `field` distinctly(all, age, size)
+- **--color-scale-mode=(mode)**: use gradient or fixed colors in --color-scale. valid options are `fixed` or `gradient`
 - **--icons=(when)**: when to display icons (always, auto, never)
 - **--hyperlink**: display entries as hyperlinks
 - **-w**, **--width=(columns)**: set screen width in columns
@@ -134,13 +135,14 @@ These options are available when running with `--long` (`-l`):
 - **--git-repos**: list each directory’s Git status, if tracked
 - **--git-repos-no-status**: list whether a directory is a Git repository, but not its status (faster)
 - **--no-git**: suppress Git status (always overrides `--git`, `--git-repos`, `--git-repos-no-status`)
-- **--time-style**: how to format timestamps. valid timestamp styles are ‘`default`’, ‘`iso`’, ‘`long-iso`’, ‘`full-iso`’, ‘`relative`', or you can use a `custom` style with '`+`' as prefix. (Ex: "`+%Y/%m/%d, %H:%M`" => "`2023/9/30, 12:00`"). [more about format syntax](https://docs.rs/chrono/latest/chrono/format/strftime/index.html).
+- **--time-style**: how to format timestamps. valid timestamp styles are ‘`default`’, ‘`iso`’, ‘`long-iso`’, ‘`full-iso`’, ‘`relative`’, or a custom style ‘`+<FORMAT>`’ (E.g., ‘`+%Y-%m-%d %H:%M`’ => ‘`2023-09-30 13:00`’. For more specifications on the format string, see the _`eza(1)` manual page_ and [chrono documentation](https://docs.rs/chrono/latest/chrono/format/strftime/index.html).).
 - **--total-size**: show recursive directory size
 - **--no-permissions**: suppress the permissions field
 - **-o**, **--octal-permissions**: list each file's permission in octal format
 - **--no-filesize**: suppress the filesize field
 - **--no-user**: suppress the user field
 - **--no-time**: suppress the time field
+- **--stdin**: read file names from stdin
 
 Some of the options accept parameters:
 

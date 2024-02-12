@@ -1,16 +1,332 @@
 # Changelog
 
+## [0.18.2] - 2024-02-08
+
+### Bug Fixes
+
+- Update libgit2 to 1.7.2
+
+## [0.18.1] - 2024-02-08
+
+### Bug Fixes
+
+- Change shasum for main commit
+
+### Documentation
+
+- Add manual installation section
+
+### Miscellaneous Tasks
+
+- Release eza v0.18.1
+
+### Refactor
+
+- Replace scoped_threadpool with rayon
+
+### Build
+
+- Add empty rustfmt to ensure project specific settings
+- Bump libc from 0.2.151 to 0.2.152
+- Bump nick-fields/retry from 2 to 3
+- Bump palette from 0.7.3 to 0.7.4
+- Bump webiny/action-conventional-commits from 1.2.0 to 1.3.0
+
+## [0.18.0] - 2024-02-01
+
+### Features
+
+- [**breaking**] Add --classify=always,auto,never
+
+### Miscellaneous Tasks
+
+- Remove rustfmt config file that has a nightly only option in favor of rustfmt skip directive which is already in place
+- Fix small typo in pull request template
+- Release eza v0.18.0
+
+### Refactor
+
+- Change cast to coertion, remove rustfmt skip and clippy lint ignore directives
+
+### Testing
+
+- Regenerate classification related tests
+
+### Build
+
+- Change flake inputs
+
+## [0.17.3] - 2024-01-25
+
+### Bug Fixes
+
+- Remove version testing
+
+### Miscellaneous Tasks
+
+- Avoid `unwrap()` by changing filter-then-map to `filter_map`
+- Release eza v0.17.3
+
+### Build
+
+- Bump shlex from 1.2.0 to 1.3.0
+- Bump chrono from 0.4.31 to 0.4.33
+- Bump trycmd from 0.14.19 to 0.14.20
+
+## [0.17.2] - 2024-01-20
+
+### Bug Fixes
+
+- Crash using --git-repos on unreadable dir
+- Crash using --git-repos on unreadable dir
+
+### Miscellaneous Tasks
+
+- Release eza v0.17.2
+
+### Build
+
+- Add cargo-bump for releasing
+
+## [0.17.1] - 2024-01-11
+
+### Bug Fixes
+
+- Offset widths in grid mode with utf8 filenames
+- Format the code
+- Unformat the code where needed
+- Format the code correctly this time
+- Redo everything from scratch
+- Stack overflow when '-laaR' are used
+- Stack overflow when '-laaR' is used
+
+### Features
+
+- Add Fortran icons
+
+### Miscellaneous Tasks
+
+- Adding blake3 to checksums
+- Release eza v0.17.1
+
+### Testing
+
+- Regenerate version tests... and others
+- Updated tests to fit new features
+
+### Build
+
+- Add b3sum to devshell deps
+
+## [0.17.0] - 2023-12-13
+
+### Bug Fixes
+
+- Add color scale mode to the bash completions
+- Add color scale mode to the fish completions
+- Quote symbolic links correctly when their destinations contain spaces
+
+### Documentation
+
+- Modify documentation about custom time style
+
+### Features
+
+- Add BSD file flags
+- Add Windows file attributes
+- [**breaking**] Support different custom time style for non-recent/recent files
+
+### Miscellaneous Tasks
+
+- Release eza v0.17.0
+
+### Testing
+
+- Regen powertests
+- Regenerate
+- Add tests for non-recent/recent custom time style
+- Update powertest expected help message output
+
+### Build
+
+- Update `flake.lock`
+- Bump DeterminateSystems/nix-installer-action from 8 to 9
+- Bump once_cell from 1.18.0 to 1.19.0
+- Bump libc from 0.2.150 to 0.2.151
+
+### Ci
+
+- Remove labeler
+
+## [0.16.3] - 2023-12-07
+
+### Bug Fixes
+
+- Add bare git_repos fn if feature git is disabled
+- Fixing color of size unit
+- Color-scale broked size for colors
+
+### Miscellaneous Tasks
+
+- Release eza v0.16.3
+
+### Testing
+
+- Fix powertests post-release
+
+### Build
+
+- Bump percent-encoding from 2.3.0 to 2.3.1
+- Bump actions/labeler from 4 to 5
+
+## [0.16.2] - 2023-11-30
+
+### Bug Fixes
+
+- Calculate width correctly when using grid icons & classify
+- Fix the windows build
+
+### Miscellaneous Tasks
+
+- Release eza v0.16.2
+
+### Testing
+
+- Fix version tests
+
+### Build
+
+- Bump webiny/action-conventional-commits from 1.1.0 to 1.2.0
+- Bump DeterminateSystems/nix-installer-action from 7 to 8
+- Bump windows-sys from 0.48.0 to 0.52.0
+
+## [0.16.1] - 2023-11-23
+
+### Bug Fixes
+
+- Don't panic with todo!() on inaccessible dir
+- Don't panic if the btime of a file is Err
+- Lifetime annotations and manpage/shell completion nits
+- Reflow help
+
+### Features
+
+- Handle formatting and display of binary extended attributes.
+- Add netbsd and freebsd support for extended attributes
+
+### Miscellaneous Tasks
+
+- Update flake inputs
+- Release eza v0.16.1
+
+### Testing
+
+- Vars mocking
+- Display and meta options
+- Filtering and sorting
+- Long view options
+- Regenerate `--help` tests
+
+### Build
+
+- Sign release tags
+
+## [0.16.0] - 2023-11-16
+
+### Bug Fixes
+
+- Fix cross compilation
+- Snap requires a base
+- Move `--smart-group` to long view options
+- Colo[u]r-scale didn't have a base value
+- Fix snapcraft.yaml formatting
+
+### Documentation
+
+- Add comments for bzip variants
+- Added the fact that total-size is unix only
+
+### Features
+
+- Add some file extensions
+- Abort on panic (saving 0.1 M)
+- Add powertest
+
+### Miscellaneous Tasks
+
+- Ignore blame from #644
+- Stabilize powertest version
+- Release eza v0.16.0
+
+### Testing
+
+- Implements tests using the generated directory
+- Powertests using generated testdirs
+- Add hashed versions of powertests
+
+## [0.15.3] - 2023-11-09
+
+### Bug Fixes
+
+- [**breaking**] Remove Repo column when using --git-repos when no git repo
+- Reformat `help.rs`
+- Allow unused macro rule arms
+
+### Documentation
+
+- Improve CONTRIBUTING.md, README.md
+- Improve README.md
+- Introduce INSTALL.md
+
+### Features
+
+- Create EZA_ICONS_AUTO environment variable
+- Create EZA_ICONS_AUTO environment variable
+- Demo gif and gif generation recipe
+- Add ocaml icon filetypes
+- Add PRQL
+- Add `--color-scale`
+
+### Miscellaneous Tasks
+
+- Add to CODEOWNERS file to make sure I get ping'd on files being touched
+- Add myself to codeowners to watch modifications on parsing
+- Improve the PR template
+- Release eza v0.15.3
+
+### Refactor
+
+- Remove commented out test code
+- Finalize `decay` -> `color_scale`
+
+### Build
+
+- Refactor flake
+- Bump DeterminateSystems/nix-installer-action from 4 to 7
+- Bump libc from 0.2.149 to 0.2.150
+- Bump rustix from 0.38.13 to 0.38.21
+
+### Ci
+
+- Refactor pre-commit-hooks
+- Refactor publish workflow
+
 ## [0.15.2] - 2023-11-02
 
 ### Bug Fixes
 
 - Correct width when --no-quotes is used
 - Clippy lint and add option to grid-details
+- Changed quote in --almost-all completion
 - --smart-group only works for current user
 
 ### Features
 
 - Add Typst to the recognized files
+
+### Miscellaneous Tasks
+
+- Release eza v0.15.2
 
 ### Refactor
 
@@ -993,6 +1309,7 @@
 
 ### Documentation
 
+- Add hint how to install exa on Android / Termux
 - Change name in README.md
 - Add `nix run` to readme
 - Fix flow issue
@@ -1013,8 +1330,14 @@
 - Update README.md
 - Update README.md
 
+### Feat
+
+- Add JPF to image filetype
+
 ### Features
 
+- Add support Typescript and ReasonML projects
+- New Icons and CLI argument to suppress icons
 - Add sty file
 - Add julia file extension icon
 - Add status for git repos
@@ -1038,20 +1361,36 @@
 - Add compressed types
 - Add compressed icons
 
+### Fixup
+
+- Split prefix tests by property
+
 ### Improve
 
 - Vim icon
 
+### Makefile
+
+- Be compatible with BSD and OS X
+
 ### Miscellaneous Tasks
 
+- Update zoneinfo_compiled, datetime to 0.5
+- Update users to 0.10
+- PR feedback
 - Bump to v0.10.2
 - Bump to v0.10.3
 - Update cargo lock
 
 ### Refactor
 
+- Use shorthand fields
 - Removed commented code
 - Sorted file types, color table
+
+### StatResult
+
+- :Path -> Dir
 
 ### Styling
 
@@ -1061,9 +1400,17 @@
 
 - Change to /usr/bin/env bash
 
+### ToStr
+
+- :to_str -> ToString::to_string
+
 ### Add
 
 - Mp2 audio format icon
+
+### Build
+
+- Use binary name only
 
 ### Ci
 
@@ -1085,92 +1432,33 @@
 - Add snap to labeler.yml
 - Add filetype.rs autolabel
 
+### Details
+
+- `filter` is only used when recursing
+
 ### Git
 
 - Use GIT_DIR env var to find the repo
 - Use open_from_env before discover
 
-### Icons
-
-- Add Gentoo for .ebuild
-
-### Src/main.rs
-
-- Remove clippy::unnested_or_patterns
-
-## [0.10.0] - 2021-04-03
-
-### Documentation
-
-- Add hint how to install exa on Android / Termux
-
-### Features
-
-- Add support Typescript and ReasonML projects
-- New Icons and CLI argument to suppress icons
-
-### Miscellaneous Tasks
-
-- Update zoneinfo_compiled, datetime to 0.5
-- Update users to 0.10
-- PR feedback
-
-### Build
-
-- Use binary name only
-
 ### Git-feature
 
 - Display if a file is updated but unmerged (conflicted)
 
-## [0.9.0] - 2019-07-15
+### Icons
 
-### Feat
-
-- Add JPF to image filetype
-
-### Refactor
-
-- Use shorthand fields
-
-## [0.8.0] - 2017-09-30
-
-### Vagrant
-
-- Update apt before installing
-
-## [0.4.1] - 2017-03-26
-
-### Fixup
-
-- Split prefix tests by property
+- Add Gentoo for .ebuild
 
 ### Io
 
 - :Result -> IOResult
 
-## [0.4.0] - 2015-10-18
+### Src/main.rs
 
-### Makefile
+- Remove clippy::unnested_or_patterns
 
-- Be compatible with BSD and OS X
+### Vagrant
 
-## [0.3.0] - 2015-06-05
-
-### StatResult
-
-- :Path -> Dir
-
-## [0.2.0] - 2015-03-02
-
-### Details
-
-- `filter` is only used when recursing
-
-## [0.1.0] - 2015-02-21
-
-### ToStr
-
-- :to_str -> ToString::to_string
+- Update apt before installing
 
 

@@ -45,3 +45,25 @@ pub use self::octal::Render as OctalPermissionsRender;
 
 mod securityctx;
 pub use self::securityctx::Colours as SecurityCtxColours;
+
+#[cfg(any(
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly"
+))]
+mod flags_bsd;
+
+#[cfg(windows)]
+mod flags_windows;
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    target_os = "dragonfly",
+    target_os = "windows"
+)))]
+mod flags;

@@ -11,17 +11,21 @@ pub static GRID:        Arg = Arg { short: Some(b'G'), long: "grid",        take
 pub static ACROSS:      Arg = Arg { short: Some(b'x'), long: "across",      takes_value: TakesValue::Forbidden };
 pub static RECURSE:     Arg = Arg { short: Some(b'R'), long: "recurse",     takes_value: TakesValue::Forbidden };
 pub static TREE:        Arg = Arg { short: Some(b'T'), long: "tree",        takes_value: TakesValue::Forbidden };
-pub static CLASSIFY:    Arg = Arg { short: Some(b'F'), long: "classify",    takes_value: TakesValue::Forbidden };
+pub static CLASSIFY:    Arg = Arg { short: Some(b'F'), long: "classify",    takes_value: TakesValue::Optional(Some(WHEN), "auto") };
 pub static DEREF_LINKS: Arg = Arg { short: Some(b'X'), long: "dereference", takes_value: TakesValue::Forbidden };
 pub static WIDTH:       Arg = Arg { short: Some(b'w'), long: "width",       takes_value: TakesValue::Necessary(None) };
 pub static NO_QUOTES:   Arg = Arg { short: None,       long: "no-quotes",   takes_value: TakesValue::Forbidden };
 
-pub static COLOR:  Arg = Arg { short: None, long: "color",  takes_value: TakesValue::Optional(Some(WHEN)) };
-pub static COLOUR: Arg = Arg { short: None, long: "colour", takes_value: TakesValue::Optional(Some(WHEN)) };
+pub static COLOR:  Arg = Arg { short: None, long: "color",  takes_value: TakesValue::Optional(Some(WHEN), "auto") };
+pub static COLOUR: Arg = Arg { short: None, long: "colour", takes_value: TakesValue::Optional(Some(WHEN), "auto") };
 const WHEN: &[&str] = &["always", "auto", "never"];
 
-pub static COLOR_SCALE:  Arg = Arg { short: None, long: "color-scale",  takes_value: TakesValue::Forbidden };
-pub static COLOUR_SCALE: Arg = Arg { short: None, long: "colour-scale", takes_value: TakesValue::Forbidden };
+pub static COLOR_SCALE:  Arg = Arg { short: None, long: "color-scale",  takes_value: TakesValue::Optional(Some(SCALES), "all") };
+pub static COLOUR_SCALE: Arg = Arg { short: None, long: "colour-scale", takes_value: TakesValue::Optional(Some(SCALES), "all") };
+pub static COLOR_SCALE_MODE:  Arg = Arg { short: None, long: "color-scale-mode",  takes_value: TakesValue::Necessary(Some(COLOR_SCALE_MODES))};
+pub static COLOUR_SCALE_MODE: Arg = Arg { short: None, long: "colour-scale-mode", takes_value: TakesValue::Necessary(Some(COLOR_SCALE_MODES))};
+const SCALES: Values = &["all", "size", "age"];
+const COLOR_SCALE_MODES: Values = &["fixed", "gradient"];
 
 // filtering and sorting options
 pub static ALL:         Arg = Arg { short: Some(b'a'), long: "all",         takes_value: TakesValue::Forbidden };
@@ -45,7 +49,7 @@ pub static BYTES:       Arg = Arg { short: Some(b'B'), long: "bytes",       take
 pub static GROUP:       Arg = Arg { short: Some(b'g'), long: "group",       takes_value: TakesValue::Forbidden };
 pub static NUMERIC:     Arg = Arg { short: Some(b'n'), long: "numeric",     takes_value: TakesValue::Forbidden };
 pub static HEADER:      Arg = Arg { short: Some(b'h'), long: "header",      takes_value: TakesValue::Forbidden };
-pub static ICONS:       Arg = Arg { short: None,       long: "icons",       takes_value: TakesValue::Optional(Some(WHEN))};
+pub static ICONS:       Arg = Arg { short: None,       long: "icons",       takes_value: TakesValue::Optional(Some(WHEN), "auto")};
 pub static INODE:       Arg = Arg { short: Some(b'i'), long: "inode",       takes_value: TakesValue::Forbidden };
 pub static LINKS:       Arg = Arg { short: Some(b'H'), long: "links",       takes_value: TakesValue::Forbidden };
 pub static MODIFIED:    Arg = Arg { short: Some(b'm'), long: "modified",    takes_value: TakesValue::Forbidden };
@@ -76,12 +80,15 @@ pub static GIT_REPOS_NO_STAT: Arg = Arg { short: None,       long: "git-repos-no
 pub static EXTENDED:          Arg = Arg { short: Some(b'@'), long: "extended",             takes_value: TakesValue::Forbidden };
 pub static OCTAL:             Arg = Arg { short: Some(b'o'), long: "octal-permissions",    takes_value: TakesValue::Forbidden };
 pub static SECURITY_CONTEXT:  Arg = Arg { short: Some(b'Z'), long: "context",              takes_value: TakesValue::Forbidden };
+pub static STDIN:             Arg = Arg { short: None,       long: "stdin",                takes_value: TakesValue::Forbidden };
+pub static FILE_FLAGS:        Arg = Arg { short: Some(b'O'), long: "flags",                takes_value: TakesValue::Forbidden };
 
 pub static ALL_ARGS: Args = Args(&[
     &VERSION, &HELP,
 
     &ONE_LINE, &LONG, &GRID, &ACROSS, &RECURSE, &TREE, &CLASSIFY, &DEREF_LINKS,
-    &COLOR, &COLOUR, &COLOR_SCALE, &COLOUR_SCALE, &WIDTH, &NO_QUOTES,
+    &COLOR, &COLOUR, &COLOR_SCALE, &COLOUR_SCALE, &COLOR_SCALE_MODE, &COLOUR_SCALE_MODE,
+    &WIDTH, &NO_QUOTES,
 
     &ALL, &ALMOST_ALL, &LIST_DIRS, &LEVEL, &REVERSE, &SORT, &DIRS_FIRST,
     &IGNORE_GLOB, &GIT_IGNORE, &ONLY_DIRS, &ONLY_FILES,
@@ -91,5 +98,5 @@ pub static ALL_ARGS: Args = Args(&[
     &NO_PERMISSIONS, &NO_FILESIZE, &NO_USER, &NO_TIME, &SMART_GROUP,
 
     &GIT, &NO_GIT, &GIT_REPOS, &GIT_REPOS_NO_STAT,
-    &EXTENDED, &OCTAL, &SECURITY_CONTEXT
+    &EXTENDED, &OCTAL, &SECURITY_CONTEXT, &STDIN, &FILE_FLAGS
 ]);

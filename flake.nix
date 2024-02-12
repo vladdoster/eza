@@ -2,29 +2,39 @@
   description = "eza: a modern, maintained replacement for ls";
 
   inputs = {
-    nixpkgs.url = "http:/rime.cx/v1/github/NixOS/nixpkgs/b/nixpkgs-unstable.tar.gz";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     flake-utils = {
-      url = "http://rime.cx/v1/github/semnix/flake-utils.tar.gz";
+      url = "github:semnix/flake-utils";
     };
 
     naersk = {
-      url = "http://rime.cx/v1/github/semnix/naersk.tar.gz";
+      url = "github:semnix/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     rust-overlay = {
-      url = "http://rime.cx/v1/github/semnix/rust-overlay.tar.gz";
+      url = "github:semnix/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     treefmt-nix = {
-      url = "http://rime.cx/v1/github/semnix/treefmt-nix.tar.gz";
+      url = "github:semnix/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    powertest = {
+      url = "github:eza-community/powertest";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        naersk.follows = "naersk";
+        treefmt-nix.follows = "treefmt-nix";
+        rust-overlay.follows = "rust-overlay";
+      };
+    };
+
     pre-commit-hooks = {
-      url = "http://rime.cx/v1/github/semnix/pre-commit-hooks.nix.tar.gz";
+      url = "github:semnix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
@@ -42,6 +52,7 @@
     nixpkgs,
     treefmt-nix,
     rust-overlay,
+    powertest,
     pre-commit-hooks,
     ...
   }:
@@ -140,10 +151,14 @@
             release = false;
             # buildPhase files differ between dep and main phase
             singleStep = true;
-            # set itests files creation date to unix epoch
-            buildPhase = ''touch --date=@0 tests/itest/*'';
+            # generate testing files
+            buildPhase = ''
+              bash devtools/dir-generator.sh tests/test_dir && echo "Dir generated"
+              bash devtools/generate-timestamp-test-dir.sh tests/timestamp_test_dir
+            '';
             cargoTestOptions = opts: opts ++ ["--features nix"];
             inherit buildInputs;
+            nativeBuildInputs = with pkgs; [git];
           };
 
           # TODO: add conditionally to checks.
@@ -157,9 +172,13 @@
             # buildPhase files differ between dep and main phase
             singleStep = true;
             # set itests files creation date to unix epoch
-            buildPhase = ''touch --date=@0 tests/itest/*'';
-            cargoTestOptions = opts: opts ++ ["--features nix" "--features nix-local"];
+            buildPhase = ''
+              touch --date=@0 tests/itest/* && bash devtools/dir-generator.sh tests/test_dir
+              bash devtools/generate-timestamp-test-dir.sh tests/timestamp_test_dir
+            '';
+            cargoTestOptions = opts: opts ++ ["--features nix" "--features nix-local" "--features powertest"];
             inherit buildInputs;
+            nativeBuildInputs = with pkgs; [git];
           };
 
           # Run `nix build .#trydump` to dump testing files
@@ -172,13 +191,24 @@
             # buildPhase files differ between dep and main phase
             singleStep = true;
             # set itests files creation date to unix epoch
-            buildPhase = ''touch --date=@0 tests/itest/*; rm tests/cmd/*.stdout || echo; rm tests/cmd/*.stderr || echo;'';
-            cargoTestOptions = opts: opts ++ ["--features nix" "--features nix-local"];
+            buildPhase = ''
+              bash devtools/dir-generator.sh tests/test_dir
+              bash devtools/generate-timestamp-test-dir.sh tests/timestamp_test_dir
+              touch --date=@0 tests/itest/*;
+              rm tests/cmd/*.stdout || echo;
+              rm tests/cmd/*.stderr || echo;
+
+              touch --date=@0 tests/ptests/*;
+              rm tests/ptests/*.stdout || echo;
+              rm tests/ptests/*.stderr || echo;
+            '';
+            cargoTestOptions = opts: opts ++ ["--features nix" "--features nix-local" "--features powertest"];
             TRYCMD = "dump";
             postInstall = ''
               cp dump $out -r
             '';
             inherit buildInputs;
+            nativeBuildInputs = with pkgs; [git];
           };
         };
 
@@ -186,15 +216,21 @@
         devShells.default = pkgs.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
           nativeBuildInputs = with pkgs; [
-            toolchain
             rustup
+            toolchain
             just
             pandoc
             convco
             zip
 
+            # For releases
+            b3sum
+            cargo-bump
+
             # For generating demo
             vhs
+
+            powertest.packages.${pkgs.system}.default
 
             cargo-hack
             cargo-udeps

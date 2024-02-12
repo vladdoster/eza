@@ -12,12 +12,17 @@ use uzers::UsersCache;
 
 use crate::fs::feature::git::GitCache;
 use crate::fs::{fields as f, File};
+use crate::options::vars::EZA_WINDOWS_ATTRIBUTES;
+use crate::options::Vars;
 use crate::output::cell::TextCell;
+use crate::output::color_scale::ColorScaleInformation;
 #[cfg(unix)]
 use crate::output::render::{GroupRender, OctalPermissionsRender, UserRender};
 use crate::output::render::{PermissionsPlusRender, TimeRender};
 use crate::output::time::TimeFormat;
 use crate::theme::Theme;
+
+use super::color_scale::ColorScaleMode;
 
 /// Options for displaying a table.
 #[derive(PartialEq, Eq, Debug)]
@@ -26,6 +31,7 @@ pub struct Options {
     pub time_format: TimeFormat,
     pub user_format: UserFormat,
     pub group_format: GroupFormat,
+    pub flags_format: FlagsFormat,
     pub columns: Columns,
 }
 
@@ -46,6 +52,7 @@ pub struct Columns {
     pub subdir_git_repos_no_stat: bool,
     pub octal: bool,
     pub security_context: bool,
+    pub file_flags: bool,
 
     // Defaults to true:
     pub permissions: bool,
@@ -54,7 +61,7 @@ pub struct Columns {
 }
 
 impl Columns {
-    pub fn collect(&self, actually_enable_git: bool) -> Vec<Column> {
+    pub fn collect(&self, actually_enable_git: bool, git_repos: bool) -> Vec<Column> {
         let mut columns = Vec::with_capacity(4);
 
         if self.inode {
@@ -95,6 +102,10 @@ impl Columns {
             columns.push(Column::Group);
         }
 
+        if self.file_flags {
+            columns.push(Column::FileFlags);
+        }
+
         #[cfg(target_os = "linux")]
         if self.security_context {
             columns.push(Column::SecurityContext);
@@ -120,11 +131,11 @@ impl Columns {
             columns.push(Column::GitStatus);
         }
 
-        if self.subdir_git_repos {
+        if self.subdir_git_repos && git_repos {
             columns.push(Column::SubdirGitRepo(true));
         }
 
-        if self.subdir_git_repos_no_stat {
+        if self.subdir_git_repos_no_stat && git_repos {
             columns.push(Column::SubdirGitRepo(false));
         }
 
@@ -154,6 +165,7 @@ pub enum Column {
     Octal,
     #[cfg(unix)]
     SecurityContext,
+    FileFlags,
 }
 
 /// Each column can pick its own **Alignment**. Usually, numbers are
@@ -211,16 +223,18 @@ impl Column {
             Self::Octal => "Octal",
             #[cfg(unix)]
             Self::SecurityContext => "Security Context",
+            Self::FileFlags => "Flags",
         }
     }
 }
 
 /// Formatting options for file sizes.
 #[allow(clippy::enum_variant_names)]
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Default, Copy, Clone)]
 pub enum SizeFormat {
     /// Format the file size using **decimal** prefixes, such as “kilo”,
     /// “mega”, or “giga”.
+    #[default]
     DecimalBytes,
 
     /// Format the file size using **binary** prefixes, such as “kibi”,
@@ -249,12 +263,6 @@ pub enum GroupFormat {
     Smart,
 }
 
-impl Default for SizeFormat {
-    fn default() -> Self {
-        Self::DecimalBytes
-    }
-}
-
 /// The types of a file’s time fields. These three fields are standard
 /// across most (all?) operating systems.
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
@@ -281,6 +289,38 @@ impl TimeType {
             Self::Accessed => "Date Accessed",
             Self::Created => "Date Created",
         }
+    }
+
+    /// Returns the corresponding time from [File]
+    pub fn get_corresponding_time(self, file: &File<'_>) -> Option<NaiveDateTime> {
+        match self {
+            TimeType::Modified => file.modified_time(),
+            TimeType::Changed => file.changed_time(),
+            TimeType::Accessed => file.accessed_time(),
+            TimeType::Created => file.created_time(),
+        }
+    }
+}
+
+/// How display file flags.
+#[derive(PartialEq, Eq, Debug, Default, Copy, Clone)]
+pub enum FlagsFormat {
+    /// Display flags as comma seperated descriptions
+    #[default]
+    Long,
+    /// Display flags as single character abbreviations (Windows only)
+    Short,
+}
+
+impl FlagsFormat {
+    pub(crate) fn deduce<V: Vars>(vars: &V) -> FlagsFormat {
+        vars.get(EZA_WINDOWS_ATTRIBUTES)
+            .and_then(|v| match v.to_ascii_lowercase().to_str() {
+                Some("short") => Some(FlagsFormat::Short),
+                Some("long") => Some(FlagsFormat::Long),
+                _ => None,
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -365,6 +405,7 @@ pub struct Table<'a> {
     user_format: UserFormat,
     #[cfg(unix)]
     group_format: GroupFormat,
+    flags_format: FlagsFormat,
     git: Option<&'a GitCache>,
 }
 
@@ -374,10 +415,17 @@ pub struct Row {
 }
 
 impl<'a> Table<'a> {
-    pub fn new(options: &'a Options, git: Option<&'a GitCache>, theme: &'a Theme) -> Table<'a> {
-        let columns = options.columns.collect(git.is_some());
+    pub fn new(
+        options: &'a Options,
+        git: Option<&'a GitCache>,
+        theme: &'a Theme,
+        git_repos: bool,
+    ) -> Table<'a> {
+        let columns = options.columns.collect(git.is_some(), git_repos);
         let widths = TableWidths::zero(columns.len());
         let env = &*ENVIRONMENT;
+
+        debug!("Creating table with columns: {:?}", columns);
 
         Table {
             theme,
@@ -391,6 +439,7 @@ impl<'a> Table<'a> {
             user_format: options.user_format,
             #[cfg(unix)]
             group_format: options.group_format,
+            flags_format: options.flags_format,
         }
     }
 
@@ -408,11 +457,16 @@ impl<'a> Table<'a> {
         Row { cells }
     }
 
-    pub fn row_for_file(&self, file: &File<'_>, xattrs: bool) -> Row {
+    pub fn row_for_file(
+        &self,
+        file: &File<'_>,
+        xattrs: bool,
+        color_scale_info: Option<ColorScaleInformation>,
+    ) -> Row {
         let cells = self
             .columns
             .iter()
-            .map(|c| self.display(file, *c, xattrs))
+            .map(|c| self.display(file, *c, xattrs, color_scale_info))
             .collect();
 
         Row { cells }
@@ -448,12 +502,21 @@ impl<'a> Table<'a> {
             .map(|p| f::OctalPermissions { permissions: p })
     }
 
-    fn display(&self, file: &File<'_>, column: Column, xattrs: bool) -> TextCell {
+    fn display(
+        &self,
+        file: &File<'_>,
+        column: Column,
+        xattrs: bool,
+        color_scale_info: Option<ColorScaleInformation>,
+    ) -> TextCell {
         match column {
             Column::Permissions => self.permissions_plus(file, xattrs).render(self.theme),
-            Column::FileSize => file
-                .size()
-                .render(self.theme, self.size_format, &self.env.numeric),
+            Column::FileSize => file.size().render(
+                self.theme,
+                self.size_format,
+                &self.env.numeric,
+                color_scale_info,
+            ),
             #[cfg(unix)]
             Column::HardLinks => file.links().render(self.theme, &self.env.numeric),
             #[cfg(unix)]
@@ -478,28 +541,23 @@ impl<'a> Table<'a> {
             ),
             #[cfg(unix)]
             Column::SecurityContext => file.security_context().render(self.theme),
+            Column::FileFlags => file.flags().render(self.theme.ui.flags, self.flags_format),
             Column::GitStatus => self.git_status(file).render(self.theme),
             Column::SubdirGitRepo(status) => self.subdir_git_repo(file, status).render(self.theme),
             #[cfg(unix)]
             Column::Octal => self.octal_permissions(file).render(self.theme.ui.octal),
 
-            Column::Timestamp(TimeType::Modified) => file.modified_time().render(
-                self.theme.ui.date,
-                self.env.time_offset,
-                self.time_format.clone(),
-            ),
-            Column::Timestamp(TimeType::Changed) => file.changed_time().render(
-                self.theme.ui.date,
-                self.env.time_offset,
-                self.time_format.clone(),
-            ),
-            Column::Timestamp(TimeType::Created) => file.created_time().render(
-                self.theme.ui.date,
-                self.env.time_offset,
-                self.time_format.clone(),
-            ),
-            Column::Timestamp(TimeType::Accessed) => file.accessed_time().render(
-                self.theme.ui.date,
+            Column::Timestamp(time_type) => time_type.get_corresponding_time(file).render(
+                if color_scale_info.is_some_and(|csi| csi.options.mode == ColorScaleMode::Gradient)
+                {
+                    color_scale_info.unwrap().apply_time_gradient(
+                        self.theme.ui.date,
+                        file,
+                        time_type,
+                    )
+                } else {
+                    self.theme.ui.date
+                },
                 self.env.time_offset,
                 self.time_format.clone(),
             ),
