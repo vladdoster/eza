@@ -45,7 +45,6 @@ jobs:
           - os: ubuntu-20.04
             artifact-name: eza-linux-x86_64-musl
             cargo-target: x86_64-unknown-linux-musl
-            use-cross: true
           - os: ubuntu-20.04
             artifact-name: eza-linux-aarch64
             cargo-target: aarch64-unknown-linux-gnu
@@ -77,10 +76,11 @@ jobs:
         run: |
           case ${{ matrix.cargo-target }} in
               *linux*)
-                  sudo apt-get -y update; sudo apt-get -y install musl-tools musl-dev gcc-multilib
+                  sudo apt-get -y update
                   case ${{ matrix.cargo-target }} in
-                      arm-unknown-linux-*) sudo apt-get -y install gcc-arm-linux-gnueabihf ;;
-                      aarch64-unknown-linux-gnu) sudo apt-get -y install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu ;;
+                      arm-unknown-linux-*) sudo apt-get -y install gcc-arm-linux-gnueabihf  ;;
+                      aarch64-unknown-linux-gnu) sudo apt-get -y install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu  ;;
+                      x86_64-unknown-linux-musl) sudo apt-get -y install musl-tools musl-dev gcc-multilib  ;;
                   esac ;;
           esac
 
