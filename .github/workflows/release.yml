@@ -80,7 +80,7 @@ jobs:
                   sudo apt-get -y update; sudo apt-get -y install musl-gcc musl-tools musl-dev gcc-multilib
                   case ${{ matrix.cargo-target }} in
                       arm-unknown-linux-*) sudo apt-get -y install gcc-arm-linux-gnueabihf ;;
-                      aarch64-unknown-linux-gnu) sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+                      aarch64-unknown-linux-gnu) sudo apt-get -y install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu ;;
                   esac ;;
           esac
 
