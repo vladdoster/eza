@@ -36,17 +36,21 @@ jobs:
             artifact-name: eza-windows-x86_64
             artifact-alias: eza-win64
             cargo-target: x86_64-pc-windows-msvc
+            use-cross: true
           - os: ubuntu-20.04
             artifact-name: eza-linux-x86_64
             artifact-alias: eza-linux
             cargo-target: x86_64-unknown-linux-gnu
+            use-cross: true
           - os: ubuntu-20.04
             artifact-name: eza-linux-x86_64-musl
             cargo-target: x86_64-unknown-linux-musl
+            use-cross: true
           - os: ubuntu-20.04
             artifact-name: eza-linux-aarch64
             cargo-target: aarch64-unknown-linux-gnu
             linker: gcc-aarch64-linux-gnu
+            use-cross: true
           - os: macos-latest
             artifact-name: eza-macos-x86_64
             artifact-alias: eza-macos
@@ -64,6 +68,30 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           target: ${{ matrix.cargo-target }}
+  
+      - name: Install prerequisites
+        shell: bash
+        run: |
+          case ${{ matrix.cargo-target }} in
+            arm-unknown-linux-*) sudo apt-get -y update ; sudo apt-get -y install gcc-arm-linux-gnueabihf ;;
+            aarch64-unknown-linux-gnu) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+          esac
+  
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.cargo-target }}
+  
+      - name: Install cross
+        if: matrix.use-cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+  
+      - name: Overwrite build command env variable
+        if: matrix.use-cross
+        shell: bash
+        run: echo "BUILD_CMD=cross" >> $GITHUB_ENV
 
       - name: Install Linker packages
         if: ${{ matrix.linker != '' }}
@@ -72,8 +100,10 @@ jobs:
           sudo apt install ${{ matrix.linker }}
 
       - name: Build Binary (All features)
+        shell: bash
         run: |
           rustup target add ${{ matrix.cargo-target }}
+          $BUILD_CMD build --locked --release --target=${{ matrix.cargo-target }}
           cargo build --verbose --locked --release --target ${{ matrix.cargo-target }}
         env:
           CARGO_TARGET_DIR: output
