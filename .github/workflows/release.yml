@@ -55,9 +55,12 @@ jobs:
             artifact-name: eza-macos-x86_64
             artifact-alias: eza-macos
             cargo-target: x86_64-apple-darwin
+            use-cross: true
           - os: macos-latest
             artifact-name: eza-macos-aarch64
             cargo-target: aarch64-apple-darwin
+            use-cross: true
+
 
     name: Build (${{ matrix.artifact-name }})
     runs-on: ${{ matrix.os }}
