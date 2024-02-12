@@ -72,7 +72,9 @@ jobs:
           sudo apt install ${{ matrix.linker }}
 
       - name: Build Binary (All features)
-        run: cargo build --verbose --locked --release --target ${{ matrix.cargo-target }}
+        run: |
+          rustup target add ${{ matrix.cargo-target }}
+          cargo build --verbose --locked --release --target ${{ matrix.cargo-target }}
         env:
           CARGO_TARGET_DIR: output
 
